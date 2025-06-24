@@ -18,23 +18,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 # to avoid error;
 # NUM_HISTORY = args.num_history
-# NUM_HISTORY = 4
+NUM_HISTORY = 4
 
 import logging
 logging.basicConfig(level=logging.INFO)
-
-def robust_parse_dict(s):
-    """
-    Parse a string that looks like a Python dict or a JSON object into a true Python dict.
-    Automatically handles None/null, single/double quotes, etc.
-    """
-    try:
-        # Replace None/True/False with JSON-compatible values
-        s_json = s.replace("None", "null").replace("True", "true").replace("False", "false").replace("'", '"')
-        return json.loads(s_json)
-    except json.JSONDecodeError:
-        # Fall back to literal_eval if json fails (handles Python-style dicts)
-        return ast.literal_eval(s)
 
 def broadcast_value(value, src=0, local_rank=0):
     tensor = torch.tensor([value], dtype=torch.float32).to(f'cuda:{local_rank}')
@@ -106,19 +93,8 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
     world_size = int(os.environ.get('WORLD_SIZE', 1))
 
     metric = 0
-    count = 0
-    for i, input_dict in tqdm(enumerate(val_loader), total=len(val_loader)):
+    for input_dict in tqdm(val_loader):
         torch.cuda.empty_cache()
-        if args.data_debug and count > 30:
-            break
-        # import pdb; pdb.set_trace() # !!
-        item = input_dict['meta_data'] # !!
-        meta = item[0] # !!
-        ##################################
-        if args.data_debug:
-            if meta['domain'] != "googleapps":
-                continue
-        ##################################
 
         input_dict = dict_to_cuda(input_dict, device=f'cuda:{local_rank}')
         if args.precision == "fp16":
@@ -134,9 +110,8 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
                 input_ids=input_dict["input_ids"],
                 labels=input_dict["labels"],
                 )
-            # forward_dict.update(image_grid_thw=input_dict["image_sizes"].squeeze(dim=0)) # !!
-            forward_dict.update(image_grid_thw=input_dict["image_sizes"]) # !!
-            forward_dict.update(patch_assign=input_dict["patch_assign"]) if "patch_assign" in input_dict else None
+            forward_dict.update(image_grid_thw=input_dict["image_sizes"])
+            forward_dict.update(patch_assign=input_dict["patch_assign"])
             forward_dict.update(patch_assign_len=input_dict["patch_assign_len"]) if "patch_assign_len" in input_dict else None
             forward_dict.update(patch_pos=input_dict["patch_pos"]) if "patch_pos" in input_dict else None
             forward_dict.update(select_mask=input_dict["select_mask"]) if "select_mask" in input_dict else None
@@ -147,12 +122,8 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
 
             generate_ids = generate_ids[:, input_dict['input_ids'].shape[1]:]
             generated_texts = processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-
-            # meta = input_dict['meta_data'][0] # !!
-            # print("Generated texts: ", generated_texts) # !!
-            assert type(item) == list and len(item) == 1
-            meta = item[0]
-            # print("meta: ", meta)
+            
+            meta = input_dict['meta_data'][0]
             outputs = {"domain": meta['domain'],
                 "anno_id": meta['anno_id'],
                 "ep_id": meta['ep_id'], "img_path": meta['img_url'], "instruction": meta['task'], "sentence": generated_texts,
@@ -176,7 +147,6 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
             generated_texts_unique.extend(generated_texts)
             answers_unique.append(meta['answer'])
             outputs_unique.append(outputs)
-            count += 1
 
     answers_unique = gather_object(answers_unique)
     generated_texts_unique = gather_object(generated_texts_unique)
@@ -193,32 +163,15 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
             ep_id = output_i['ep_id']
             if ep_id not in results[domain_i]:
                 results[domain_i][ep_id] = []
-
+            
             # step_result = output_i.copy()
             try:
-                # import pdb; pdb.set_trace() # !!
                 anno_id = output_i['anno_id']
-                # pred_i = ast.literal_eval(pred_i)
-                # print("ast.literal_eval", pred_i, type(pred_i))
-                # pred_i = ast.literal_eval(pred_i)
-                if args.data_version == "v1": # !! # oroginal dataset
-                    # pred_i = json.loads(pred_i) # !! bug
-                    pred_i = robust_parse_dict(pred_i)
-                elif args.data_version == "v2": # !! dataset with thoughts
-                    pred_i = pred_i.split("Action:")[1].strip()
-                    # pred_i = json.loads(pred_i)
-                    pred_i = robust_parse_dict(pred_i)
-                else:
-                    raise ValueError(f"Invalid version: {args.data_version}")
-                # print("pred2json_post", pred_i)
-                # import pdb; pdb.set_trace() # !!
+                pred_i = ast.literal_eval(pred_i)
                 action_pred = pred2json_post(pred_i)
                 step_i = output_i['meta']['step']
                 action_ref = action2json(step_i)
-                
-                # print("annotaion_positions", output_i["annot_position"], len(output_i["annot_position"]))
-                NUM_HISTORY = 4
-                
+
                 annot_position = np.array([output_i["annot_position"][i:i + NUM_HISTORY]    \
                                             for i in range(0, len(output_i["annot_position"]), NUM_HISTORY)])
                 check_match = check_actions_match(action_pred["touch_point"], 
@@ -228,7 +181,6 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
                                                                     action_ref["lift_point"], 
                                                                     action_ref["action_type"],
                                                                     annot_position)
-                print("check_match", check_match)
 
                 # step accuracy
                 if check_match == True:
@@ -271,7 +223,7 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
                             output_i['corr_both_click'] += 1
 
             except Exception as e: # !!
-                print("Format Action Met Error: ", e) # !!
+                print(e)
                 output_i['num_wrong_format'] += 1
                 print(f"format wrong with {anno_id}'s prediction: {pred_i}")
 
@@ -284,16 +236,13 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
             logging.info("==="*10)
             eval_dict[domain] = calculate_aitw_metrics(results[domain])
 
-        if wandb.run is None:
-            wandb.init(project="AgentNetEval", name="AITW", config=vars(args))
-
         if not args.debug:
             for domain in eval_dict.keys():
                 for key, value in eval_dict[domain].items():
                     # if isinstance(value, list):
                     if key not in ['Score']:
                         continue
-                    # writer.add_scalar(f"metrics/aitw/{domain}/{key}", value, epoch)
+                    writer.add_scalar(f"metrics/aitw/{domain}/{key}", value, epoch)
                     wandb.log({f"metrics/aitw/{domain}/{key}": value}, step=global_step)
 
         metric = sum([x["Score"] for x in eval_dict.values()]) / len(eval_dict)
@@ -301,12 +250,11 @@ def validate_aitw(val_loader, model_engine, processor, epoch, global_step, write
         logging.info(f"[Avg Score]: {metric}")
         logging.info("==="*10)
         if not args.debug:
-            # writer.add_scalar("metrics/aitw/Avg Score", metric, epoch)
+            writer.add_scalar("metrics/aitw/Avg Score", metric, epoch)
             wandb.log({"metrics/aitw/Avg Score": metric}, step=global_step)
 
         save_json(results, os.path.join(args.tmp_dir, f'aitw_epo{epoch}_tmp_dict.json'))
         save_json(eval_dict, os.path.join(args.tmp_dir, f'aitw_epo{epoch}_res_dict.json'))
 
-    if world_size > 1:
-        metric = broadcast_value(metric, src=0, local_rank=local_rank)
+    metric = broadcast_value(metric, src=0, local_rank=local_rank)
     return metric

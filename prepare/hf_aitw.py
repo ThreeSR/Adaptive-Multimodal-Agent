@@ -11,11 +11,12 @@ from pathlib import Path
 from IPython.display import display
 from PIL import Image, ImageDraw
 from data_utils import is_english_simple, bbox_2_point
+from tqdm import tqdm
 
-
-parent_dir = "/home/qinghong/data/GUI_database"
+parent_dir = "/home/ruis/code/Adaptive-Agent/data/datasets"
 imgs_dir =  f"{parent_dir}/AITW/images"
 anno_dir = f"{parent_dir}/AITW/metadata"
+thought_dir = f"{parent_dir}/AITW/metadata"
 
 def draw_point_bbox(image_path, point=None, bbox=None, radius=5, line=3):
     image = Image.open(image_path)
@@ -32,20 +33,74 @@ def draw_point_bbox(image_path, point=None, bbox=None, radius=5, line=3):
     image_draw = np.array(image)
     return image_draw
 
+def get_thought_anno(thought_data):
+    """
+    Build a dict mapping each ep_id to the list of assistant 'Thought:' strings
+    in the order they appear in the data.
+    
+    Args:
+        thought_data (list): list of entries, each having an 'images' list
+                             and a 'messages' list with assistant content.
+    Returns:
+        dict: { ep_id (str) : [thought1, thought2, ...], ... }
+    """
+    ep_thoughts = {}
+    
+    for entry in thought_data:
+        # 1) extract ep_id from the first image path:
+        #    e.g. "…/general/14492098987308163042_0.png"
+        images = entry.get("images", [])
+        if not images:
+            continue
+        first_img = images[0]
+        # filename is after the last '/', then split on '_' to isolate ep_id
+        filename = first_img.split("/")[-1]           # "14492098987308163042_0.png"
+        ep_id = filename.split("_")[0]                # "14492098987308163042"
+        
+        # 2) extract assistant message content
+        assistant_message = next(
+            (m["content"] for m in entry.get("messages", []) if m["role"] == "assistant"),
+            ""
+        )
+        
+        # 3) parse out the Thought portion
+        thought = None
+        if "Thought:" in assistant_message and "Action:" in assistant_message:
+            thought = (
+                assistant_message
+                .split("Thought:")[1]
+                .split("Action:")[0]
+                .strip()
+            )
+        
+        # 4) accumulate into dictionary
+        ep_thoughts.setdefault(ep_id, []).append(thought)
+    
+    return ep_thoughts
+
 def data_transform(version='train', mini=False):
     aitw_data = json.load(open(f"{anno_dir}/aitw_data_{version}.json", 'r'))
-    
+    thought_data = None
+    if version == 'train':
+        thought_data = json.load(open(f"{thought_dir}/aitw-hf_train_v2.json", 'r'))
+        ep_thoughts = get_thought_anno(thought_data) # dict, key is ep_id, value is the list of thoughts by order
+
     total_step = []
     step_i = 0
     for scenario in aitw_data:
-        aitw_subset = aitw_data[scenario]
-        for sample in aitw_subset:
+        aitw_subset = aitw_data[scenario] # 'general'
+        for sample in aitw_subset: # list, per sample
             # print(sample)
             confirmed_task = sample[0]['goal']
+            ep_id = sample[0]['ep_id'] # ep_id is str itself
+            thoughts = ep_thoughts[ep_id]
     
             step_history = []
             for i, step in enumerate(sample):
-                filename = step['img_filename']
+
+                thought = thoughts[i] # thought per step
+
+                filename = step['img_filename'] # general/14492098987308163042_1
                 img_url = os.path.join(imgs_dir, filename) + '.png'
                 if not os.path.exists(img_url):
                     print(img_url)
@@ -81,6 +136,8 @@ def data_transform(version='train', mini=False):
                                 "lift": step['lift'],
                                 "type_text": step['type_text'],
                                 
+                                'thought': thought,
+                                
                                 "step": step,
                                 # "step_repr": step_repr,
                                 "step_history": step_history.copy(),
@@ -98,8 +155,10 @@ def data_transform(version='train', mini=False):
     return total_step
 
 if __name__ == "__main__":
-    for version in ['train', 'test', 'val']:
+    # for version in ['train', 'test', 'val']:
+    for version in ['train']:
         data = data_transform(version=version)
-        save_url = f"{anno_dir}/hf_{version}.json"
+        # save_url = f"{anno_dir}/hf_{version}.json"
+        save_url = f"{anno_dir}/hf_{version}_thought.json"
         with open(save_url, "w") as file:
             json.dump(data, file, indent=4)

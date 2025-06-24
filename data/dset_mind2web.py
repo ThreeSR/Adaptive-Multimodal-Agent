@@ -139,6 +139,43 @@ class Mind2WebDataset(torch.utils.data.Dataset):
                 image_list.append(Image.open(image_path).convert("RGB"))
         return image_list
 
+    # Pending !!! NOTE https://github.com/showlab/ShowUI/issues/76
+    # def get_history_qwen(self, image_list, sample, num_history, interleaved_history='tttt', decay_factor=1):
+    #     # last one is the current image, past are the history
+    #     # import pdb; pdb.set_trace()
+    #     curr_image = image_list[-1]
+    #     curr_dict = [{'type': 'image', 'image': curr_image, 'min_pixels': self.min_pixels, 'max_pixels': self.max_pixels}]
+    #     if num_history == 0 or sample['step_history'] == []:
+    #         assert len(image_list) == 1
+    #         return curr_dict
+
+    #     step_history = sample['step_history']
+    #     action_history = []
+    #     action_prefix = []
+    #     for i, step in enumerate(step_history[-num_history:]):
+    #         action = get_answer(step, step['step'], step['step_repr'])
+    #         # try:
+    #         #     action = get_answer(step, step['step'], step['step_repr'])
+    #         # except:
+    #         #     import pdb; pdb.set_trace()
+    #         max_pixels = max(self.min_pixels, self.max_pixels * decay_factor ** (num_history - i))
+    #         if interleaved_history == 'vvtt':
+    #             action_prefix.append({"type": "image", "image": image_list[i], "min_pixels": self.min_pixels, "max_pixels": max_pixels})
+    #         elif interleaved_history == 'ttvv':
+    #             action_prefix.append({"type": "text", "text": f'{action}'})
+
+    #         if interleaved_history in ['tttt', 'vvtt']:
+    #             action_history.append({"type": "text", "text": f'{action}'})
+    #         elif interleaved_history in ['vvvv', 'ttvv']:
+    #             action_history.append({"type": "image", "image": image_list[i], "min_pixels": self.min_pixels, "max_pixels": max_pixels})
+    #         elif interleaved_history == 'vtvt':
+    #             action_history.append({"type": "image", "image": image_list[i], "min_pixels": self.min_pixels, "max_pixels": max_pixels})
+    #             action_history.append({"type": "text", "text": f'{action}'})
+    #         elif interleaved_history == 'tvtv':
+    #             action_history.append({"type": "text", "text": f'{action}'})
+    #             action_history.append({"type": "image", "image": image_list[i], "min_pixels": self.min_pixels, "max_pixels": max_pixels})
+    #     tmp = action_prefix + action_history + curr_dict
+    #     return tmp
     def get_history_qwen(self, image_list, sample, num_history, interleaved_history='tttt', decay_factor=1):
         # last one is the current image, past are the history
         curr_image = image_list[-1]
@@ -148,11 +185,20 @@ class Mind2WebDataset(torch.utils.data.Dataset):
             return curr_dict
 
         step_history = sample['step_history']
+
+        # modified
+        repr_history = sample['repr_history']
+        # modified
+
         action_history = []
         action_prefix = []
-        for i, step in enumerate(step_history[-num_history:]):
-            action = get_answer(step, step['step'], step['step_repr'])
-            max_pixels = max(self.min_pixels, self.max_pixels * decay_factor ** (num_history - i))
+
+        # modified
+        for i, (stp, stp_repr) in enumerate(zip(step_history[-num_history:], repr_history[-num_history:])):
+            action = get_answer(sample, stp, stp_repr)
+            max_pixels = max(self.min_pixels, int(self.max_pixels * (decay_factor ** (num_history - i))))
+            # modified
+
             if interleaved_history == 'vvtt':
                 action_prefix.append({"type": "image", "image": image_list[i], "min_pixels": self.min_pixels, "max_pixels": max_pixels})
             elif interleaved_history == 'ttvv':
@@ -242,7 +288,7 @@ class Mind2WebDataset(torch.utils.data.Dataset):
             for key in ['select_mask', 'patch_pos', 'patch_assign', 'patch_assign_len']:
                 if key in data_dict_q:
                     data_dict[key] = data_dict_q[key]
-
+            # import pdb; pdb.set_trace()  # Debugging breakpoint
             return (
                 data_dict,
                 item,
@@ -258,7 +304,7 @@ class Mind2WebDataset(torch.utils.data.Dataset):
             image_sizes=data_dict_q["image_grid_thw"],
             labels=data_dict_qa["labels"][0],
         )
-
+        # import pdb; pdb.set_trace()  # Debugging breakpoint
         # Prepare elements for ShowUI
         for key in ['select_mask', 'patch_pos', 'patch_assign', 'patch_assign_len']:
             if key in data_dict_q:
@@ -284,15 +330,17 @@ if __name__ == '__main__':
                                             )
 
     dataset = Mind2WebDataset(
-        "/blob/v-lqinghong/data/GUI_database",
+        "/home/ruis/code/Adaptive-Agent/data/datasets",
         "mind2web",
-        "hf_train",
+        "hf_test_full",
         processor,
-        inference=False,
+        inference=True,
         args_dict={'num_history': 2, 'interleaved_history': 'tttt'}
     )
 
     for i in range(len(dataset)):
-        data = dataset.__getitem__(i)
+        # data = dataset.__getitem__(i)
+        data = dataset[i]
+        import pdb; pdb.set_trace()
         data_size = str(data[1]['img_size'])
         print(i, len(data[0]['input_ids']), data[0]['patch_assign_len'], data[0]['select_mask'].sum())

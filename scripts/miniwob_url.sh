@@ -1,0 +1,1 @@
+export MINIWOB_URL="file://miniwob-plusplus/miniwob/html/miniwob/"

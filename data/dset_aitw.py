@@ -121,8 +121,8 @@ class AitwDataset(torch.utils.data.Dataset):
     def append_history_image(self, sample, num_history, image_list, url_only=False):
         if num_history == 0:
             return image_list
-        step_history = sample['step_history']
-        for i, step in enumerate(step_history[-num_history:], start=1):
+        step_history = sample['step_history'] # it is in the ht-train-aitw json
+        for i, step in enumerate(step_history[-num_history:], start=1): # "img_filename": "general/14492098987308163042_0"
             image_path = os.path.join(self.IMG_DIR, step["img_filename"]+'.png')
             if url_only:
                 image_list.append(image_path)
@@ -133,18 +133,18 @@ class AitwDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.get_sample(idx)
 
-    def get_history_qwen(self, image_list, sample, num_history, interleaved_history='tttt', decay_factor=1):
+    def get_history_qwen(self, image_list, sample, num_history, interleaved_history='tttt', decay_factor=1): # add previous history to the current observation
         # last one is the current image, past are the history
         curr_image = image_list[-1]
-        curr_dict = [{'type': 'image', 'image': curr_image, 'min_pixels': self.min_pixels, 'max_pixels': self.max_pixels}]
-        if num_history == 0 or sample['step_history'] == []:
+        curr_dict = [{'type': 'image', 'image': curr_image, 'min_pixels': self.min_pixels, 'max_pixels': self.max_pixels}] # current observation
+        if num_history == 0 or sample['step_history'] == []: # the very first step, so no history
             assert len(image_list) == 1
             return curr_dict
 
         step_history = sample['step_history']
         action_history = []
         action_prefix = []
-        for i, step in enumerate(step_history[-num_history:]):
+        for i, step in enumerate(step_history[-num_history:]): # decide which way to input qwen, interleaved or not, multimodal or not
             action = get_answer(step)
             max_pixels = max(self.min_pixels, self.max_pixels * decay_factor ** (num_history - i))
             if interleaved_history == 'vvtt':
@@ -210,7 +210,7 @@ class AitwDataset(torch.utils.data.Dataset):
         item['anno_id'] = idx
         item['answer'] = answer_dict
 
-        source = aitw_to_qwen(task, action_history, None)
+        source = aitw_to_qwen(task, action_history, None) # this is where we add the prompt and current content to qwen format
 
         prompt = self.processor.apply_chat_template(source, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs = process_vision_info(source)
@@ -276,11 +276,11 @@ if __name__ == '__main__':
                                             )
 
     dataset = AitwDataset(
-        "/blob/v-lqinghong/data/GUI_database",
+        "/home/ruis/code/Adaptive-Agent/data/datasets",
         "aitw",
-        "hf_train",
+        "hf_test",
         processor,
-        inference=False,
+        inference=True,
         args_dict={'num_history': 2, 'interleaved_history': 'vtvt'}
     )
 

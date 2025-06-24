@@ -108,7 +108,9 @@ def parse_args(args):
     parser.add_argument("--val_ratio", default="1", type=str)
     parser.add_argument("--uniform_sample", action="store_true", default=False)
     parser.add_argument("--random_sample", action="store_true", default=False)
-    parser.add_argument("--record_sample", action="store_true", default=False)
+    parser.add_argument("--record_sample", action="store_true", default=False) # meaningless for now
+    parser.add_argument("--data_version", type=str, default="v1", choices=["v1", "v2"], help="Version of the dataset") # for aitw dataset, v1 is the original dataset, v2 is the dataset with thoughts from tong-ui
+    parser.add_argument("--data_debug", action="store_true", help="Enable debug mode")
     
     ### ShowUI Preprocessor
     # 0. Common setups
@@ -256,7 +258,7 @@ def main(args):
         else:
             model_url = args.model_id
         processor = ShowUIProcessor.from_pretrained(
-                                                    "Qwen/Qwen2-VL-2B-Instruct",
+                                                    "Qwen/Qwen2-VL-2B-Instruct", # ?? -> ok
                                                     min_pixels=args.min_visual_tokens *28*28, 
                                                     max_pixels=args.max_visual_tokens *28*28,
                                                     model_max_length=args.model_max_length,
@@ -310,7 +312,7 @@ def main(args):
                     bnb_4bit_use_double_quant=True,
                     bnb_4bit_quant_type="nf4",
                     llm_int8_skip_modules=["img_projection"],
-                ) if args.use_qlora else None
+                ) if args.use_qlora else None # QLoRA based on lora, it further uses 4-bit quantization
 
     # Create model
     if args.local_weight:

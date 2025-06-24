@@ -76,8 +76,8 @@ class HybridDataset(torch.utils.data.Dataset):
         self.inference = inference
         if self.inference:
             args.shuffle_image_token = False
-            dset_list = args.val_dataset
-            json_list = args.val_json
+            dset_list = args.val_dataset # mind2web
+            json_list = args.val_json # hf_test_full
             sample_rate = args.val_ratio
         else:
             dset_list = args.train_dataset
@@ -114,14 +114,15 @@ class HybridDataset(torch.utils.data.Dataset):
                         )
                 )
             elif dataset in ["mind2web"]:
+                # import pdb; pdb.set_trace()  # Debugging line to check the state of variables
                 self.all_datasets.append(
                     Mind2WebDataset(
                         dataset_dir=args.dataset_dir,
-                        dataset=dataset,
-                        json_data=json_split,
+                        dataset=dataset, # mind2web
+                        json_data=json_split, # hf_test_full
                         processor=processor,
-                        inference=inference,
-                        args_dict=vars(args),
+                        inference=inference, # True
+                        args_dict=vars(args), # tttt
                         )
                 )
             elif dataset in ["aitw"]:

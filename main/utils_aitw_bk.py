@@ -106,9 +106,6 @@ def _resize_annotation_bounding_boxes(
     Resized bounding box.
 
   """
-  print("annotation_positions", annotation_positions)
-  print("annotation_width_augment_fraction", annotation_width_augment_fraction)
-  print("annotation_height_augment_fraction", annotation_height_augment_fraction)
   height_change = (
       annotation_height_augment_fraction * annotation_positions[:, 2])
   width_change = (
@@ -319,14 +316,7 @@ def action2json(step_data):
         action["typed_text"] = action["typed_text"].lower()
     return action
 
-def pred2json(prediction, version="v1"):
-    print("Get prediction with version: ", version, "\n", prediction)
-    if version == "v1":
-        pass
-    elif version == "v2":
-        prediction = prediction.split("Action:")[1].strip()
-    else:
-        raise ValueError(f"Invalid version: {version}")
+def pred2json(prediction):
     prediction = prediction.replace('\"', '\'')
     pattern = r"'action':\s*'(.*?)',\s*'value':\s*(None|'(.*?)'),\s*'position':\s*(None|\[([0-9.]+),\s*([0-9.]+)\])"
     match = re.search(pattern, prediction)
@@ -359,36 +349,12 @@ def pred2json_post(step_data):
     # {'action': 'ACTION_TYPE', 'value': 'element', 'position': [x,y]}
     action_type = step_data["action"].upper()
     # align with https://github.com/njucckevin/SeeClick/blob/main/agent_tasks/aitw_process.py#L36
-    action2id = {
-        'CLICK': 4, 
-        'TYPE': 3, 
-        'INPUT': 3, # add by rui
-        'ENTER': 7, # add by rui
-        'SELECT': 2, 
-        'SCROLL UP': 1, 
-        'SCROLL DOWN': 0, 
-        'SCROLL LEFT': 8, 
-        'SCROLL RIGHT': 9, 
-        'SCROLL_UP': 1, 
-        'SCROLL_DOWN': 0, 
-        'SCROLL_LEFT': 8, 
-        'SCROLL_RIGHT': 9, 
-        'PRESS BACK': 5, 
-        'PRESS HOME': 6, 
-        'PRESS ENTER': 7,
-        'STATUS TASK COMPLETE': 10, 
-        'STATUS TASK IMPOSSIBLE': 11,
-        'PRESS_BACK': 5, 
-        'PRESS_HOME': 6, 
-        'PRESS_ENTER': 7,
-        'STATUS_TASK_COMPLETE': 10, 
-        'STATUS_TASK_IMPOSSIBLE': 11
-    }
-    if action_type not in action2id:
-        print(f"action_type {action_type} not in action2id")
-        return None
+    action2id = {'CLICK': 4, 'TYPE': 3, 'SELECT': 2, 
+                'SCROLL UP': 1, 'SCROLL DOWN': 0, 'SCROLL LEFT': 8, 'SCROLL RIGHT': 9, 
+                'PRESS BACK': 5, 'PRESS HOME': 6, 'PRESS ENTER': 7,
+                'STATUS TASK COMPLETE': 10, 'STATUS TASK IMPOSSIBLE': 11}
     action_id = action2id[action_type]
-
+        
     # click
     if action_id == 4:
         action_type_new = 4
@@ -428,7 +394,7 @@ def pred2json_post(step_data):
 
     action = {"action_type": action_type_new, "touch_point": touch_point, 
                 "lift_point": lift_point, "typed_text": typed_text}
- 
+
     action["touch_point"] = [action["touch_point"][1], action["touch_point"][0]]
     action["lift_point"] = [action["lift_point"][1], action["lift_point"][0]]
     if action["typed_text"] is not None:

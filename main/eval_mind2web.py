@@ -225,7 +225,7 @@ def validate_mind2web(val_loader, model_engine, processor, epoch, global_step, w
                 op_f1 = calculate_f1(pred_str, ref_str)
                 step_result["Op_F1"][0] = op_f1
 
-            except Exception as e:
+            except Exception as e: # !!
                 print(e)
                 print(f"format wrong with {anno_id}'s prediction: {pred_i}")
 
