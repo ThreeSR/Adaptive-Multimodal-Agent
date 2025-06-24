@@ -18,3 +18,14 @@ test_miniwob.py
 
 # Personal
 push.sh
+
+results/
+test_rui.ipynb
+data/datasets
+test.py
+
+scripts/openai_key.sh
+/home/ruis/code/Adaptive-Multimodal-Agent/scripts/openai_key_rui.sh
+scripts/openai_key_rui.sh
+/home/ruis/code/Adaptive-Multimodal-Agent/scripts/openai_key.sh
+/home/ruis/code/Adaptive-Multimodal-Agent/scripts/agent_lab.sh

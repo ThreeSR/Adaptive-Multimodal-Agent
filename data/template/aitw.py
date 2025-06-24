@@ -3,7 +3,7 @@ import pdb
 _AITW_SYSTEM = """You are an assistant trained to navigate the mobile phone. 
 Given a task instruction, a screen observation, and an action history sequence, 
 output the next action and wait for the next observation. 
-Here is the action space:
+Here is the action space: (You MUST follow the action space strictly, and the action MUST be one of the following types)
 1. `CLICK`: Click on an element, value is not applicable and the position [x,y] is required. 
 2. `TYPE`: Type a string into an element, value is a string to type and the position is not applicable.
 3. `SELECT`: Select a value for an element, value is the value to select and the position is not applicable.
