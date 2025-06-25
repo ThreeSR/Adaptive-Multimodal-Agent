@@ -1,0 +1,319 @@
+description: Magma finetuning on Open-X datasets
+
+target:
+  service: sing
+  #name: whitney10
+  name: whitney12
+  #name: msroctobasicvc@gcr-singularity-octo
+  workspace_name: reubenws
+
+environment:
+  registry: reubencr.azurecr.io
+  image: rocm/vllm0.6.3-rocm6.2-pytorch2.6-singularity-ib:1.0
+  #image: rocm/vllm0.6.3-rocm6.2.3-pytorch2.6-fa2.7-singularity-ib:2.0
+
+  setup:
+    - echo "start"
+
+storage:
+  vlpdatasets:
+    storage_account_name: vlpdatasets
+    container_name: data  
+  model:
+    storage_account_name: projects4jw
+    container_name: model
+  output:
+    storage_account_name: reubenprojects
+    container_name: model
+
+code:
+  local_dir: ./
+
+search:
+  job_template:
+    #name: premium-amd-pretrain-col33-step56000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+    #name: premium-amd-pretraining_col34-step42000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+    #name: premium-amd-ablate-row3-col7-step14000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+    name: run3-premium-amd-ablate-row3-col7-step14000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+    #name: premium-amd-scaling-row1-col4-step42000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+    sku: 8xG8-MI300X-IB-xGMI
+    #sku: 8x192G8-MI300X-IB-xGMI@westcentralus
+    mpi: False
+    process_count_per_node: 1
+    #sla_tier: Basic
+    #sla_tier: Standard
+    identity: managed
+    command:
+    - rm pyproject.toml
+    - pip install --upgrade pip --user # enable PEP 660 support
+
+    - mv setup_amd.py setup.py
+
+    - pip install -e . --user
+
+    - pip install --pre torch==2.6.0.dev20241029+rocm6.2 torchvision==0.20.0.dev20241105+rocm6.2 --index-url https://download.pytorch.org/whl/nightly/rocm6.2
+    - pip install deepspeed==0.9.5
+    - pip install --user ninja wandb==0.16.6
+    - pip install wheel --user
+    - pip install open_clip_torch --user --upgrade
+    - pip install timm --user
+    - pip install pillow --user
+    - pip install accelerate --user
+    - pip install bitsandbytes --user
+    - pip install datasets --user
+    #- pip install git+https://github.com/jwyang/transformers.git@dev/jwyang-v4.40.1
+
+    - pip install git+https://github.com/jwyang/transformers.git@dev/jwyang-v4.44.1
+    - pip install git+https://github.com/facebookresearch/co-tracker.git --user
+    - mkdir -p checkpoints
+    - cd checkpoints
+    - wget https://huggingface.co/facebook/cotracker3/resolve/main/scaled_offline.pth
+    - cd ..     
+    - pip install decord
+    - pip install matplotlib flow_vis tqdm tensorboard imageio[ffmpeg] --user
+    - pip install ipython --user
+    - pip install faiss-gpu --user
+    - pip install scenedetect[opencv] --upgrade --user
+    - git clone https://github.com/subhadarship/kmeans_pytorch
+    - cd kmeans_pytorch
+    - pip install --editable .    
+    - cd ..
+
+    #- pip install langchain-core==0.2.20
+    #- pip install 'pydantic<2.0'
+    - pip install bitsandbytes==0.44.0
+    - export NCCL_TIMEOUT=1200000
+    - export NCCL_TOPO_FILE=
+
+    - export WANDB_PROJECT=video_magma
+    - export WANDB_API_KEY=$WANDB_API_KEY
+    
+    #- python -m launch_2 train.py
+    - python -m torch.distributed.run --nproc_per_node 8 --nnodes {nnodes} --node_rank $$NODE_RANK --master_port 9500  --master_addr node-0 train.py
+      --deepspeed ./deepspeed/zero3.json
+      --model_name_or_path /mnt/model/{llm_model}
+      --version llama_3_instruct
+      --data_path ./data_configs/{sft_data}.yaml
+      --img_size {base_img_size}
+      --training_size {training_size}
+      --img_anyres_strategy {img_anyres_strategy}
+      --max_num_crops {max_num_crops}
+      --max_num_frames {max_num_frames}
+      --mm_use_spatial_pooling {mm_use_spatial_pooling}
+      --mm_use_vlm_template True
+      --vision_backbone 'convnextxxlarge' 
+      --feature_outs 'encoder' 
+      --is_multimodal True 
+      --mm_projector_type 'mlp2x_gelu_segtokv9' 
+      --tune_vision_tokenizer {tune_vision_tokenizer}
+      --segtok_posembed 'sinusoidal' 
+      --mm_vision_select_layer -2
+      --mm_use_trace_start_end {mm_use_trace_start_end}
+      --mm_use_trace_speed {mm_use_trace_speed}
+      --mm_use_image_start_end {mm_use_image_start_end}
+      --remove_static_trace_pts {remove_static_trace_pts}
+      --spatial_quant_size {spatial_quant_size}
+      --group_by_modality_length True
+      --bf16 True
+      --output_dir '/mnt/output/projects/reubenprojects/video_magma/full_llava_video_qa_sft/run3-amd-ablate-row3-col7-step14000-rope-template-1.6M-tune-{tune_vision_tokenizer}-pooling-{mm_use_spatial_pooling}-frames-{max_num_frames}-res-{base_img_size}-crop-{max_num_crops}-seqlen-{max_seq_len}-model'
+      --num_train_epochs {finetune_eps}
+      --per_device_train_batch_size {ft_per_gpu_bs}
+      --per_device_eval_batch_size 1
+      --gradient_accumulation_steps {accum_steps}
+      --evaluation_strategy "no"
+      --eval_steps 500
+      --save_strategy "steps"
+      --save_steps 250
+      --save_total_limit 1000
+      --learning_rate {lr}
+      --weight_decay {wdecay}
+      --warmup_ratio 0
+      --min_lr_rate 0.1
+      --lr_scheduler_type {lr_scheduler}
+      --logging_steps 10
+      --tf32 False
+      --model_max_length {max_seq_len}
+      --gradient_checkpointing True
+      --dataloader_num_workers 8
+      --lazy_preprocess True
+      --flash_attn_2_enabled True
+      --report_to wandb      
+      --run_name amd-ablate-row3-col7-step14000-rope-template_1.6M_ft_{tune_vision_tokenizer}_seqlen-{max_seq_len}_pooling_{mm_use_spatial_pooling}-frames-{max_num_frames}-res_{base_img_size}_crop_{max_num_crops}_seqlen_{max_seq_len}_openx_magma_trace_coin_howto100m_ego4d_sthv2_epic_seeclick_llava_sharegpt4v_vision2ui-model
+    submit_args:
+      container_args:
+        # shm_size: 256g
+        SHARED_MEMORY_PERCENT: 0.8
+      env:
+        _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/2cd190bb-b42a-477c-b1bb-2f20932d8dc5/resourcegroups/Reuben-Tan/providers/Microsoft.ManagedIdentity/userAssignedIdentities/reubenuai
+        NCCL_IB_DISABLE: 0
+        NCCL_DEBUG: INFO
+        NCCL_IB_TIMEOUT: 60
+        MKL_THREADING_LAYER: GNU
+    tags: [Project_Name:Cost-Effective_Multimodal_Agentic_Foundation_Models_for_Digital_and_Physical_Worlds,ProjectID:PRJ-0441-A24,Experiment:Video_magma_finetuning]       
+  max_trials: 36
+  type: grid
+  params:
+    - name: nnodes
+      spec: discrete
+      values: [
+        8
+        #4
+      ]    
+    - name: llm_model
+      spec: discrete
+      values: [
+        #magma/checkpoints/pt-Qwen/Qwen2.5-0.5B-Instruct-all-bs4-ep3-bimsz512-ncrops4-anyrescrop-seqlen4096-4e-05-cosine-0.0_openx_magma_trace_coin_ego4d_sthv2_epic_seeclick_magma_sharegpt4v_10M_iseTrue_ihTrue_tseFalse_tsdTrue_rtptsTrue_somtomTrue_qsz100-nnodes8/checkpoint-42000
+        #magma/checkpoints_copy/data_scaling_row3_col7/checkpoint-16000
+        #magma/checkpoints_copy/data_scaling_row3_col7/checkpoint-11000
+        #magma/checkpoints_copy/data_scaling_row3_col3/checkpoint-51000
+        #magma/checkpoints_copy/data_scaling_row3_col3/checkpoint-43000
+        #magma/checkpoints_copy/data_scaling_row3_col3/checkpoint-22000
+        #magma/checkpoints_copy/pretraining_col34/checkpoint-42000
+        #magma/checkpoints_copy/data_scaling_row2_col3/checkpoint-28000
+        #magma/checkpoints_copy/data_scaling_row1_col4/checkpoint-22830
+        #magma/checkpoints_copy/finetune-none-bs4-ep3-bimsz512-ncrops4-anyrescrop-seqlen4096-1e-05-constant-0.0_coin_howto100m_ego4d_sthv2_epic_seeclick_llava_sharegpt4v_vision2ui_1M_iseTrue_ihTrue_tseFalse_tsdTrue_rtptsTrue_somtomTrue_qsz256-nnodes8-llama3-8B/checkpoint-15000
+        #magma/checkpoints_copy/finetune-none-bs8-ep3-bimsz512-ncrops4-anyrescrop-seqlen3072-1e-5-constant-0.0_openx_magma_trace_coin_howto100m_ego4d_sthv2_epic_seeclick_llava_sharegpt4v_vision2ui_-1_iseTrue_ihTrue_tseFalse_tsdTrue_rtptsTrue_somtomTrue_qsz256-nnodes5/checkpoint-56000
+        #magma/checkpoints/finetune-none-bs8-ep3-bimsz512-ncrops4-anyrescrop-seqlen3072-1e-5-constant-0.0_openx_magma_trace_coin_howto100m_ego4d_sthv2_epic_seeclick_llava_sharegpt4v_vision2ui_-1_iseTrue_ihTrue_tseFalse_tsdTrue_rtptsTrue_somtomTrue_qsz256-nnodes5/checkpoint-56000
+        #magma/checkpoints/finetune-all-bs8-ep1-bimsz512-ncrops4-anyrescrop-seqlen3072-1e-5-cosine-0.0_openx_magma_trace_coin_howto100m_ego4d_sthv2_epic_seeclick_llava_sharegpt4v_vision2ui_-1_iseTrue_ihTrue_tseFalse_tsdTrue_rtptsTrue_qsz256-nnodes10-zero1
+        #magma/checkpoints/finetune-all-bs8-ep1-bimsz512-ncrops4-anyrescrop-seqlen3072-1e-5-cosine-0.0_openx_magma_trace_coin_howto100m_ego4d_sthv2_epic_seeclick_llava_sharegpt4v_vision2ui_-1_iseTrue_ihTrue_tseFalse_tsdTrue_rtptsTrue_qsz256-nnodes10-zero1/
+        magma/checkpoints_copy/magma-llama-3-8b-instruct-hf/
+      ]
+    - name: sft_data
+      spec: discrete
+      values: [
+        #'llava1.5'
+        'video_instruction_tuning_cluster'
+      ]
+    - name: training_size
+      spec: discrete
+      values: [
+        -1
+      ]
+    - name: base_img_size
+      spec: discrete
+      values: [
+        256
+        #512
+      ]
+    - name: max_num_frames
+      spec: discrete
+      values: [
+        #12
+        #16
+        32
+        #48
+        #64
+        #96
+        #128 
+        #256
+      ]
+    - name: max_num_crops
+      spec: discrete
+      values: [
+        # each crop produces 64 tokens
+        #1
+        4, 
+        # 6,
+        #4, 
+        # 16,
+        # 25, 
+        # 36
+      ]
+    - name: img_anyres_strategy
+      spec: discrete
+      values: [
+        'crop',
+        # 'global'
+      ]      
+    - name: max_seq_len
+      spec: discrete
+      values: [
+        # 2048,
+        # 3072,
+        #4096,
+        # 5184,
+        #6144,
+        # 7168,
+        #8192
+        #12288
+        #16384
+        20480
+      ]      
+    - name: tune_vision_tokenizer
+      spec: discrete
+      values: [
+        #'none',
+        'all',
+      ]
+    - name: ft_per_gpu_bs
+      spec: discrete
+      values: [
+        1
+      ]
+    - name: accum_steps
+      spec: discrete
+      values: [
+        #2
+        4
+      ]
+    - name: finetune_eps
+      spec: discrete
+      values: [
+        1
+        # 4,
+        # 8,
+      ]
+    - name: lr
+      spec: discrete
+      values: [
+        1e-5,
+      ]
+    - name: wdecay
+      spec: discrete
+      values: [
+        0.0000,
+      ]      
+    - name: mm_use_trace_start_end
+      spec: discrete
+      values: [
+        False, 
+        # True
+      ]
+    - name: mm_use_trace_speed
+      spec: discrete
+      values: [
+        False, 
+        # True
+      ]
+    - name: mm_use_image_start_end
+      spec: discrete
+      values: [
+        #False, 
+        True
+      ]      
+    - name: remove_static_trace_pts
+      spec: discrete
+      values: [
+        False
+        # True
+      ]
+    - name: mm_use_spatial_pooling
+      spec: discrete
+      values: [
+        False, 
+        #True
+      ] 
+    - name: spatial_quant_size
+      spec: discrete
+      values: [
+        # 512,
+        256, 
+        # 128
+      ]
+    - name: lr_scheduler
+      spec: discrete
+      values: [
+        'cosine',
+        # 'cosine_with_min_lr', 
+        # 'constant'
+      ]

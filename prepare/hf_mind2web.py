@@ -10,9 +10,9 @@ import argparse
 # imgs_dir =  "./datasets/GUI_database/Mind2Web/images"
 # anno_dir = "./datasets/GUI_database/Mind2Web/metadata"
 
-parent_dir = "/home/ruis/code/Adaptive-Agent/data/datasets"
-imgs_dir =  "/home/ruis/code/Adaptive-Agent/data/datasets/Mind2Web/images"
-anno_dir = "/home/ruis/code/Adaptive-Agentt/data/datasets/Mind2Web/metadata"
+parent_dir = "/home/t-rsun/code/Adaptive-Multimodal-Agent/data/datasets"
+imgs_dir =  "/home/t-rsun/code/Adaptive-Multimodal-Agent/data/datasets/Mind2Web/images"
+anno_dir = "/home/t-rsun/code/Adaptive-Multimodal-Agent/data/datasets/Mind2Web/metadata"
 thought_dir = f"{parent_dir}/Mind2Web/metadata"
 
 def data_transform(version='train', mini=False):

@@ -24,8 +24,8 @@ Processor class for Qwen2-VL.
 from typing import List, Union
 
 from transformers.feature_extraction_utils import BatchFeature
-from transformers.image_utils import ImageInput, VideoInput
-from transformers.processing_utils import ProcessingKwargs, ProcessorMixin, Unpack, VideosKwargs
+from transformers.image_utils import ImageInput
+from transformers.processing_utils import ProcessingKwargs, ProcessorMixin, Unpack, VideosKwargs, VideoInput
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 from transformers.utils import logging
 

@@ -9,7 +9,7 @@ import random
 import argparse
 from IPython.display import display
 
-prefix = "/home/ruis/code/Adaptive-Agent/data/datasets"
+prefix = "/home/t-rsun/code/Adaptive-Multimodal-Agent/data/datasets"
 miniwob_url = f"{prefix}/MiniWob/metadata/miniwob_data_train.json"
 imgs_dir =  f"{prefix}/MiniWob/images"
 meta_dir = f"{prefix}/MiniWob/metadata/"

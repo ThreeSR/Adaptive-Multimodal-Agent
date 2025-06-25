@@ -288,7 +288,7 @@ class Mind2WebDataset(torch.utils.data.Dataset):
             for key in ['select_mask', 'patch_pos', 'patch_assign', 'patch_assign_len']:
                 if key in data_dict_q:
                     data_dict[key] = data_dict_q[key]
-            # import pdb; pdb.set_trace()  # Debugging breakpoint
+            import pdb; pdb.set_trace()  # Debugging breakpoint
             return (
                 data_dict,
                 item,
