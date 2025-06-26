@@ -1,20 +1,24 @@
-description: Test Longer Sequence on AMD
+description: Test Longer Sequence on Nvidia
 
 target:
   service: sing
   #name: whitney10
-  name: whitney16
+  name: palisades15
   #name: msroctobasicvc@gcr-singularity-octo
   workspace_name: lightyear
 
 environment:
   # registry: reubencr.azurecr.io
   # image: amlt-sing/acpt-rocm6.1_ubuntu20.04_py3.9_pytorch2.1.2
-  image: amlt-sing/acpt-rocm6.1_ubuntu20.04_py3.9_pytorch2.1.2
+  image: amlt-sing/acpt-torch2.5.0-py3.10-cuda12.4-ubuntu22.04
   #image: rocm/vllm0.6.3-rocm6.2.3-pytorch2.6-fa2.7-singularity-ib:2.0
 
   setup:
-    - echo "start"
+    - source activate
+    - conda create -n showui python=3.10
+    - conda activate showui
+    - pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118 --user
+    - pip install -r requirements.txt --user
 
 storage:
   # vlpdatasets:
@@ -26,29 +30,29 @@ storage:
   # output:
   #   storage_account_name: reubenprojects
   #   container_name: model
-  Mind2Web:
+  data:
     storage_account_name: ruisun
     container_name: data
   model:
     storage_account_name: ruisun
     container_name: model
-  output:
-    storage_account_name: ruisun
-    container_name: model
-
+  # output:
+  #   storage_account_name: ruisun
+  #   container_name: model
 
 code:
   local_dir: ./
 
-search:
-  job_template:
-    #name: premium-amd-pretrain-col33-step56000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
-    #name: premium-amd-pretraining_col34-step42000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
-    #name: premium-amd-ablate-row3-col7-step14000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
-    #name: run3-premium-amd-ablate-row3-col7-step14000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
-    #name: premium-amd-scaling-row1-col4-step42000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
-    name: long-context-test
-    sku: 1xG8-MI300X-IB-xGMI
+# search:
+jobs:
+# job template
+  #name: premium-amd-pretrain-col33-step56000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+  #name: premium-amd-pretraining_col34-step42000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+  #name: premium-amd-ablate-row3-col7-step14000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+  #name: run3-premium-amd-ablate-row3-col7-step14000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+  #name: premium-amd-scaling-row1-col4-step42000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
+  - name: long-context-test
+    sku: 1xG8-A100
     #sku: 8xG8-MI300X-IB-xGMI
     #sku: 8x192G8-MI300X-IB-xGMI@westcentralus
     mpi: False
@@ -57,17 +61,56 @@ search:
     #sla_tier: Standard
     identity: managed
     command:
-      - sleep 100d
+      - source activate
+      - conda activate showui
+      - deepspeed --include localhost:0,1,2,3 --master_port 5678 train.py \
+        --wandb_key=$$WANDB_KEY \
+        --model_id="showlab/ShowUI-2B" \
+        --version='showlab/ShowUI-2B' \
+        --dataset_dir=$$_DATA_DIR \
+        --log_base_dir=$$_SAVE_DIR \
+        --epochs=50 \
+        --steps_per_epoch=100 \
+        --batch_size=1 \
+        --grad_accumulation_steps=2 \
+        --model_max_length=8192 \
+        --exp_id="showlab/ShowUI-2B" \
+        --train_ratio="1" \
+        --train_dataset="showui"  \
+        --train_json="hf_train"   \
+        --val_dataset="mind2web"  \
+        --precision="bf16" \
+        --attn_imple="sdpa" \
+        --workers=4 \
+        --lora_r=0 \
+        --lora_alpha=64  \
+        --min_visual_tokens=256  \
+        --max_visual_tokens=1344 \
+        --num_turn=100 \
+        --crop_min=0.5 \
+        --crop_max=1.5 \
+        --record_sample \
+        --lr=0.0001 \
+        --uniform_prompt  \
+        --ds_zero="zero2" \
+        --gradient_checkpointing \
+        --eval_only
+      - sleep 1d
     submit_args:
       container_args:
         # shm_size: 256g
         SHARED_MEMORY_PERCENT: 0.8
-      env:
+      env: # set environment variables
         _AZUREML_SINGULARITY_JOB_UAI: /subscriptions/2cd190bb-b42a-477c-b1bb-2f20932d8dc5/resourcegroups/chehao/providers/Microsoft.ManagedIdentity/userAssignedIdentities/lightleap
         # NCCL_IB_DISABLE: 0
         NCCL_DEBUG: INFO
         # NCCL_IB_TIMEOUT: 60
         # MKL_THREADING_LAYER: GNU
+        WANDB_KEY: "75804c2ef8d16e3c694a4849f75596349142b31c"
+        _DATA_DIR: "/mnt/data/datasets/"
+        # _SAVE_DIR="/home/t-rsun/code/Adaptive-Multimodal-Agent/results/mind2web/ShowUI_2B_ZS"
+        # _SAVE_DIR="/home/t-rsun/code/Adaptive-Multimodal-Agent/results/mind2web/ShowUI_2B_SFT" # nlp-13 -> nlp-14
+        _SAVE_DIR: "/mnt/model/results/mind2web/QwenVL_3B_ZS"
     # tags: [Project_Name:Cost-Effective_Multimodal_Agentic_Foundation_Models_for_Digital_and_Physical_Worlds,ProjectID:PRJ-0441-A24,Experiment:Video_magma_finetuning]
   # max_trials: 36
   # type: grid
