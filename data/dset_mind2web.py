@@ -90,10 +90,10 @@ class Mind2WebDataset(torch.utils.data.Dataset):
 
         self.samples_per_epoch = args_dict.get('samples_per_epoch', 1)
 
-        META_DIR = os.path.join(self.base_image_dir, "metadata")
-        self.IMG_DIR = os.path.join(self.base_image_dir, "images")
-        with open(os.path.join(META_DIR, "{}.json".format(json_data))) as f:
-            self.json_data = json.load(f)
+        # META_DIR = os.path.join(self.base_image_dir, "metadata")
+        # self.IMG_DIR = os.path.join(self.base_image_dir, "images")
+        # with open(os.path.join(META_DIR, "{}.json".format(json_data))) as f:
+        #     self.json_data = json.load(f)
         self.num_turn = args_dict.get('num_turn', 0)
         self.num_history = args_dict.get('num_history', 0)
         self.interleaved_history = args_dict.get('interleaved_history', 'tttt')
@@ -132,6 +132,7 @@ class Mind2WebDataset(torch.utils.data.Dataset):
             return image_list
         step_history = sample['step_history']
         for i, step in enumerate(step_history[-num_history:], start=1):
+            # import pdb; pdb.set_trace()  # Debugging breakpoint
             image_path = os.path.join(self.IMG_DIR, step["img_url"])
             if url_only:
                 image_list.append(image_path)
@@ -253,7 +254,7 @@ class Mind2WebDataset(torch.utils.data.Dataset):
             image_path = ""
             image_list = None
         item['img_url_abs'] = image_path
-
+        # import pdb; pdb.set_trace()  # Debugging breakpoint
         if self.interleaved_history in ['vvvv', 'vvtt', 'ttvv', 'vtvt', 'tvtv']:
             image_list = self.append_history_image(item, self.num_history, image_list, url_only=True)
         image_list.append(image_list.pop(0))
@@ -288,7 +289,7 @@ class Mind2WebDataset(torch.utils.data.Dataset):
             for key in ['select_mask', 'patch_pos', 'patch_assign', 'patch_assign_len']:
                 if key in data_dict_q:
                     data_dict[key] = data_dict_q[key]
-            import pdb; pdb.set_trace()  # Debugging breakpoint
+            # import pdb; pdb.set_trace()  # Debugging breakpoint
             return (
                 data_dict,
                 item,
@@ -330,17 +331,17 @@ if __name__ == '__main__':
                                             )
 
     dataset = Mind2WebDataset(
-        "/home/ruis/code/Adaptive-Agent/data/datasets",
+        "/home/t-rsun/code/Adaptive-Multimodal-Agent/data/datasets",
         "mind2web",
         "hf_test_full",
         processor,
         inference=True,
-        args_dict={'num_history': 2, 'interleaved_history': 'tttt'}
+        args_dict={'num_history': 2, 'interleaved_history': 'vtvt'}
     )
 
     for i in range(len(dataset)):
         # data = dataset.__getitem__(i)
         data = dataset[i]
-        import pdb; pdb.set_trace()
         data_size = str(data[1]['img_size'])
         print(i, len(data[0]['input_ids']), data[0]['patch_assign_len'], data[0]['select_mask'].sum())
+        data_dict, item = dataset.get_sample(i)

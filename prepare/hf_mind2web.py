@@ -32,10 +32,13 @@ def data_transform(version='train', mini=False):
             # action_reprs ["[button]  Change Location -> CLICK", "[searchbox]  Search by city... -> TYPE: New York",.. ]
             filename = annot_id + '-' + step["action_uid"] + '.jpg'
             img_path = os.path.join(imgs_dir, filename)
+
+            step.update({"img_url": filename})  # ! add img_url to step
             
             if not os.path.exists(img_path):
                 continue
             image = Image.open(img_path)
+            step.update({"img_size": image.size})
 
             total_step.append({
                             "split": version,
