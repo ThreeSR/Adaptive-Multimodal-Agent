@@ -5,7 +5,7 @@ _SAVE_DIR="/home/t-rsun/code/Adaptive-Multimodal-Agent/results/mind2web/ShowUI_2
 # _SAVE_DIR="/home/t-rsun/code/Adaptive-Multimodal-Agent/results/mind2web/QwenVL_3B_ZS"
 
 # Fine-tune ShowUI
-deepspeed --include localhost:0,1,2,3 --master_port 1224 train.py \
+deepspeed --include localhost:0 --master_port 1224 train.py \
   --wandb_key=$WANDB_KEY \
   --model_id='showlab/ShowUI-2B' \
   --version='showlab/ShowUI-2B' \
@@ -40,7 +40,7 @@ deepspeed --include localhost:0,1,2,3 --master_port 1224 train.py \
   --lm_skip_ratio=0.5   \
   --lm_skip_layer='[1,28,0]' \
   --interleaved_history="vtvt" \
-  --num_history=1 \
+  --num_history=2 \
   # --auto_resume \
 # last rows are added by rui
 
