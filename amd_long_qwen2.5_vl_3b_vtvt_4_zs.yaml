@@ -1,4 +1,4 @@
-description: Run First Longer Sequence ZS on AMD
+description: long-context-qwen2.5-vl-3b-instruct-vtvt-4-zs on AMD
 
 target:
   service: sing
@@ -17,20 +17,8 @@ environment:
     - source activate
     - conda create -n long python=3.11
     - conda activate long
-    # - pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118 --user
-    # - pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.3
-    # - pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.3
 
 storage:
-  # vlpdatasets:
-  #   storage_account_name: vlpdatasets
-  #   container_name: data  
-  # model:
-  #   storage_account_name: projects4jw
-  #   container_name: model
-  # output:
-  #   storage_account_name: reubenprojects
-  #   container_name: model
   data:
     storage_account_name: ruisun
     container_name: data
@@ -49,7 +37,7 @@ jobs:
   #name: premium-amd-ablate-row3-col7-step14000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
   #name: run3-premium-amd-ablate-row3-col7-step14000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
   #name: premium-amd-scaling-row1-col4-step42000-rope-template-1.6M-pooling-{mm_use_spatial_pooling}-seqlen-{max_seq_len}-ft-{tune_vision_tokenizer}-frames-{max_num_frames}-finetune-{max_num_crops}-anyres{img_anyres_strategy}-{tune_vision_tokenizer}-{finetune_eps}-{sft_data}_ise{mm_use_image_start_end}_tse{mm_use_trace_start_end}_tsd{mm_use_trace_speed}_rtpts{remove_static_trace_pts}_qsz{spatial_quant_size}
-  - name: long-context-amd-first-run
+  - name: long-context-qwen2.5-vl-3b-instruct-vtvt-4-zs-amd
     sku: 1xG8-MI300X-IB-xGMI
     #sku: 8xG8-MI300X-IB-xGMI
     #sku: 8x192G8-MI300X-IB-xGMI@westcentralus
@@ -75,7 +63,7 @@ jobs:
         --batch_size=1
         --grad_accumulation_steps=2
         --model_max_length=8192
-        --exp_id="Qwen2.5-VL-3B-Instruct-VTVT-2-ZS-AMD"
+        --exp_id="Qwen2.5-VL-3B-Instruct-VTVT-4-ZS-AMD"
         --train_ratio="1"
         --train_dataset="showui"
         --train_json="hf_train"
@@ -97,7 +85,7 @@ jobs:
         --gradient_checkpointing
         --eval_only
         --interleaved_history="vtvt"
-        --num_history=5
+        --num_history=4
       - sleep 1d
     submit_args:
       container_args:

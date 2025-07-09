@@ -269,10 +269,11 @@ class Mind2WebDataset(torch.utils.data.Dataset):
         source = mind2web_to_qwen(task, action_history, None)
 
         prompt = self.processor.apply_chat_template(source, tokenize=False, add_generation_prompt=True)
+        # import pdb; pdb.set_trace()  # Debugging breakpoint
         image_inputs, video_inputs = process_vision_info(source)
 
         data_dict_q = self.processor(text=[prompt], images=image_inputs, videos=video_inputs, return_tensors="pt",
-                                        training=not self.inference)
+                                        training=not self.inference) # will issue warning but not an error
 
         if self.inference:
             if 'labels' not in data_dict_q:
@@ -286,7 +287,7 @@ class Mind2WebDataset(torch.utils.data.Dataset):
             )
 
             # Prepare elements for ShowUI
-            for key in ['select_mask', 'patch_pos', 'patch_assign', 'patch_assign_len']:
+            for key in ['select_mask', 'patch_pos', 'patch_assign', 'patch_assign_len']: # ! only for showui
                 if key in data_dict_q:
                     data_dict[key] = data_dict_q[key]
             # import pdb; pdb.set_trace()  # Debugging breakpoint
@@ -319,29 +320,37 @@ class Mind2WebDataset(torch.utils.data.Dataset):
 if __name__ == '__main__':
     from model.showui.processing_showui import ShowUIProcessor
     from model.showui.modeling_showui import ShowUIForConditionalGeneration
-
-    processor = ShowUIProcessor.from_pretrained(
-                                            "Qwen/Qwen2-VL-2B-Instruct", 
-                                            min_pixels=1024*28*28, 
-                                            max_pixels=1024*28*28,
-                                            model_max_length=4096,
-                                            uigraph_train=False, uigraph_test=False,
-                                            uigraph_diff=1,  uigraph_rand=False,
-                                            uimask_pre=True, uimask_ratio=1, uimask_rand=False
-                                            )
+    from model.qwen2_5_vl.processing_qwen2_5_vl import Qwen2_5_VLProcessor
+    from model.qwen2_5_vl.modeling_qwen2_5_vl import Qwen2_5_VLForConditionalGeneration
+    # processor = ShowUIProcessor.from_pretrained(
+    #                                         "Qwen/Qwen2-VL-2B-Instruct", 
+    #                                         min_pixels=1024*28*28, 
+    #                                         max_pixels=1024*28*28,
+    #                                         model_max_length=4096,
+    #                                         uigraph_train=False, uigraph_test=False,
+    #                                         uigraph_diff=1,  uigraph_rand=False,
+    #                                         uimask_pre=True, uimask_ratio=1, uimask_rand=False
+    #                                         )
+    processor = Qwen2_5_VLProcessor.from_pretrained(
+                                                    "Qwen/Qwen2.5-VL-3B-Instruct", # Qwen/Qwen2.5-VL-7B-Instruct
+                                                    min_pixels=1024 *28*28, 
+                                                    max_pixels=1024 *28*28,
+                                                    model_max_length=4096,
+                                                    )
 
     dataset = Mind2WebDataset(
-        "/home/t-rsun/code/Adaptive-Multimodal-Agent/data/datasets",
+        "/mnt/data1/t-rsun/datasets",
         "mind2web",
         "hf_test_full",
         processor,
         inference=True,
-        args_dict={'num_history': 2, 'interleaved_history': 'vtvt'}
+        args_dict={'num_history': 2, 'interleaved_history': 'tttt'}
     )
 
     for i in range(len(dataset)):
         # data = dataset.__getitem__(i)
         data = dataset[i]
         data_size = str(data[1]['img_size'])
-        print(i, len(data[0]['input_ids']), data[0]['patch_assign_len'], data[0]['select_mask'].sum())
+        # import pdb; pdb.set_trace()
+        # print(i, len(data[0]['input_ids']), data[0]['patch_assign_len'], data[0]['select_mask'].sum(), data[0]['patch_assign']) # only for showui
         data_dict, item = dataset.get_sample(i)

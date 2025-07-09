@@ -137,6 +137,7 @@ def validate_mind2web(val_loader, model_engine, processor, epoch, global_step, w
     world_size = int(os.environ.get('WORLD_SIZE', 1))
 
     metric = 0
+    debug_index = 0
     for input_dict in tqdm(val_loader):
         torch.cuda.empty_cache()
 
@@ -155,8 +156,9 @@ def validate_mind2web(val_loader, model_engine, processor, epoch, global_step, w
                 labels=input_dict["labels"],
                 )
             forward_dict.update(image_grid_thw=input_dict["image_sizes"])
-            forward_dict.update(patch_assign=input_dict["patch_assign"])
-            forward_dict.update(patch_assign_len=input_dict["patch_assign_len"])
+            # import pdb; pdb.set_trace()  # Debugging breakpoint
+            forward_dict.update(patch_assign=input_dict["patch_assign"]) if "patch_assign" in input_dict else None
+            forward_dict.update(patch_assign_len=input_dict["patch_assign_len"]) if "patch_assign_len" in input_dict else None
             forward_dict.update(patch_pos=input_dict["patch_pos"]) if "patch_pos" in input_dict else None
             forward_dict.update(select_mask=input_dict["select_mask"]) if "select_mask" in input_dict else None
 
@@ -176,6 +178,11 @@ def validate_mind2web(val_loader, model_engine, processor, epoch, global_step, w
             generated_texts_unique.extend(generated_texts)
             answers_unique.append(meta['answer'])
             outputs_unique.append(outputs)
+            
+            ##########################################################
+            # debug_index += 1
+            # if debug_index == 3000: break
+            # import pdb; pdb.set_trace()  # Debugging breakpoint
 
     answers_unique = gather_object(answers_unique)
     generated_texts_unique = gather_object(generated_texts_unique)
@@ -228,6 +235,9 @@ def validate_mind2web(val_loader, model_engine, processor, epoch, global_step, w
             except Exception as e: # !!
                 print(e)
                 print(f"format wrong with {anno_id}'s prediction: {pred_i}")
+
+
+            # import pdb; pdb.set_trace()  # Debugging breakpoint
 
             results[split_i][anno_id].append(step_result)
 

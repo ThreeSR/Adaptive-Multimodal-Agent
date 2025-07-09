@@ -87,8 +87,8 @@ def parse_args(args):
     parser.add_argument("--liger_kernel", action="store_true", default=False)
 
     # Model & Ckpt
-    parser.add_argument("--model_id", default="showlab/ShowUI-2B", choices=["showlab/ShowUI-2B", "Qwen/Qwen2-VL-2B-Instruct", "Qwen/Qwen2-VL-7B-Instruct", \
-                                                                            "Qwen/Qwen2.5-VL-3B-Instruct"])
+    parser.add_argument("--model_id", default="showlab/ShowUI-2B") # choices=["showlab/ShowUI-2B", "Qwen/Qwen2-VL-2B-Instruct", "Qwen/Qwen2-VL-7B-Instruct", \
+                                                                        # "Qwen/Qwen2.5-VL-3B-Instruct"])
     parser.add_argument("--version", default="showlab/ShowUI-2B")
     parser.add_argument("--max_new_tokens", default=128, type=int, help="max. generated token length")
     parser.add_argument("--local_weight", action="store_true", default=False)
@@ -197,13 +197,15 @@ def parse_args(args):
     parser.add_argument("--auto_resume", action="store_true", default=True)
     parser.add_argument("--no_eval", action="store_true", default=False)
     parser.add_argument("--eval_only", action="store_true", default=False)
+    parser.add_argument("--load_best", action="store_true", default=False)
+    parser.add_argument("--best_step", default="", type=str)
     parser.add_argument("--print_freq", default=1, type=int)
     parser.add_argument("--debug", action="store_true", default=False, help="for debugging, will not save model and monitor")
     return parser.parse_args(args)
 
 def main(args):
     print("\033[34m##########################################################\033[0m")
-    print("\033[34m############ 💻 Building GUI Agents with ShowUI ##########\033[0m")
+    print("\033[34m############ 💻 Building GUI Agents ##########\033[0m")
     print("\033[34m##########################################################\033[0m")
 
     env_init()
@@ -241,7 +243,7 @@ def main(args):
             writer = SummaryWriter(os.path.join(args.log_dir, 'tensorboard'))       # init. tensorboard writer
             # init. wandb monitor
             wandb.init(
-                project="ShowUI",
+                project="ShowUI", # to be revised
                 group=args.exp_id,
                 name=f'{args.exp_id}_{timestamp}',
                 dir=args.log_dir,
@@ -280,7 +282,7 @@ def main(args):
                                                     max_pixels=args.max_visual_tokens *28*28,
                                                     model_max_length=args.model_max_length,
                                                    )
-    elif args.model_id in ["Qwen/Qwen2.5-VL-3B-Instruct", "Qwen/Qwen2.5-VL-7B-Instruct"]:
+    elif args.model_id in ["Qwen/Qwen2.5-VL-3B-Instruct", "Qwen/Qwen2.5-VL-7B-Instruct", "Qwen/Qwen2.5-VL-32B-Instruct", "Qwen/Qwen2.5-VL-72B-Instruct"]:
         from model.qwen2_5_vl.processing_qwen2_5_vl import Qwen2_5_VLProcessor
         from model.qwen2_5_vl.modeling_qwen2_5_vl import Qwen2_5_VLForConditionalGeneration
         model_id = args.model_id.replace("Qwen/", "")
@@ -316,10 +318,10 @@ def main(args):
 
     # Create model
     if args.local_weight:
-        model_id = args.model_id.replace("Qwen/", "")
+        model_id = args.model_id.replace("Qwen/", "") # "Qwen/Qwen2.5-VL-3B-Instruct" -> "Qwen2.5-VL-3B-Instruct"
         model_url = f"{args.local_weight_dir}/{model_id}"
     else:
-        model_url = args.model_id
+        model_url = args.model_id # "Qwen/Qwen2.5-VL-3B-Instruct"
         
     if args.model_id in ["showlab/ShowUI-2B"]:
         from model.utils import parse_layer_type
@@ -351,13 +353,13 @@ def main(args):
             quantization_config=bnb_config,
             device_map=f"cuda:{args.local_rank}",
         )
-    elif args.model_id in ["Qwen/Qwen2.5-VL-3B-Instruct", "Qwen/Qwen2.5-VL-7B-Instruct"]:
+    elif args.model_id in ["Qwen/Qwen2.5-VL-3B-Instruct", "Qwen/Qwen2.5-VL-7B-Instruct", "Qwen/Qwen2.5-VL-32B-Instruct", "Qwen/Qwen2.5-VL-72B-Instruct"]:
         from model.qwen2_5_vl.modeling_qwen2_5_vl import Qwen2_5_VLForConditionalGeneration
 
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_url,
+            model_url, # "Qwen/Qwen2.5-VL-3B-Instruct"
             low_cpu_mem_usage=True,
-            _attn_implementation=args.attn_imple,
+            _attn_implementation=args.attn_imple, # sdpa
             quantization_config=bnb_config,
             device_map=f"cuda:{args.local_rank}",
         )
@@ -366,9 +368,22 @@ def main(args):
     if args.version != args.model_id:
         state_dict = torch.load(args.version, map_location="cpu")
         model.load_state_dict(state_dict, strict=False)
-    
+
+    if args.load_best: # load best checkpoint for inference
+        best_step = args.best_step
+        ################################# remember to change the path
+        # ckpt_path = os.path.join(args.log_dir, "ckpt_model", f"global_step{best_step}", "merged-qwen2p5vl-3b-tttt-2-sft-amd.bin")
+        ckpt_path = os.path.join("/mnt/data1/t-rsun/results/mind2web/Long_Context_AMD/Qwen2.5-VL-3B-Instruct-TTTT-2-SFT-AMD/2025-07-07_16-56-01", "ckpt_model", f"global_step{best_step}", "merged-qwen2p5vl-3b-tttt-2-sft-amd.bin")
+        ################################## remember to change the path
+        if os.path.exists(ckpt_path):
+            best_ckpt_path = ckpt_path # file path
+        # import pdb; pdb.set_trace()
+        # load_path, client_state = model_engine.load_checkpoint(best_ckpt_path) # shouldn't use since deepspeed required
+        state_dict = torch.load(best_ckpt_path, map_location="cpu")
+        model.load_state_dict(state_dict, strict=False)
+
     model.config.use_cache = False
-    
+
     if args.liger_kernel:
         # https://github.com/linkedin/Liger-Kernel
         print("Apply liger kernel to ShowUI for efficiency")
@@ -541,9 +556,9 @@ def main(args):
     if args.auto_resume and len(args.resume) == 0:
         resume = os.path.join(args.log_dir, "ckpt_model")
         if os.path.exists(resume):
-            args.resume = resume
+            args.resume = resume # file path
 
-    if args.resume:
+    if args.resume: # resume from checkpoint
         load_path, client_state = model_engine.load_checkpoint(args.resume)
         with open(os.path.join(args.resume, "latest"), "r") as f:
             ckpt_dir = f.readlines()[0].strip()
@@ -579,6 +594,8 @@ def main(args):
     if args.eval_only:
         local_rank = args.local_rank
         model_engine = model_engine.to(f'cuda:{local_rank}')
+        # import pdb
+        # pdb.set_trace()
         validate(val_loader, model_engine, processor, 0, 0, writer, args)
         exit()
 
